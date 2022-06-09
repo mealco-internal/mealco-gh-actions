@@ -6,19 +6,19 @@ on:
       SEMANTIC_RELEASE_PACKAGE:
         description: "Original package in top level package.json to bump the version for"
         required: true
-        example: "@mealco-internal/my-package"
+        type: string
       POSTGRES_DB:
         description: "Postgres DB name"
         required: true
-        default: "postgres"
+        type: string
       MYSQL_DB:
         description: "MySQL DB name"
         required: true
-        example: "mysql"
+        type: string
       OPENAPI_CLIENT_NAME:
         description: "Name of the generated OpenApi client from the project"
         required: true
-        example: "@mealco-internal/my-package-ts-axios"
+        type: string
     secrets:
       NPM_TOKEN:
         required: true
