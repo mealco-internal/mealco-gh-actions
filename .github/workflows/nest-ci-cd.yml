@@ -1,0 +1,122 @@
+name: CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      SEMANTIC_RELEASE_PACKAGE:
+        description: "Original package in top level package.json to bump the version for"
+        required: true
+        example: "@mealco-internal/my-package"
+      POSTGRES_DB:
+        description: "Postgres DB name"
+        required: true
+        default: "postgres"
+      MYSQL_DB:
+        description: "MySQL DB name"
+        required: true
+        example: "mysql"
+      OPENAPI_CLIENT_NAME:
+        description: "Name of the generated OpenApi client from the project"
+        required: true
+        example: "@mealco-internal/my-package-ts-axios"
+    secrets:
+      NPM_TOKEN:
+        required: true
+      GH_TOKEN:
+        required: true
+      SLACK_DEV_RELEASE_WEBHOOK:
+        required: true
+      SLACK_PROD_RELEASE_WEBHOOK:
+        required: true
+
+env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: ${{ inputs.POSTGRES_DB }}
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test
+
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_DATABASE: ${{ inputs.MYSQL_DB }}
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 3
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+
+      - name: "Install and Build"
+        run: |
+          npm config set @mealco-internal:registry https://npm.pkg.github.com
+          npm config set -- '//npm.pkg.github.com/:_authToken' ${NPM_TOKEN}
+          npm ci
+          npm run build
+
+      - name: "Lint"
+        run: npm run lint:check
+
+      - name: "Test"
+        run: |
+          npm run db:test:setup
+          npm run test
+        env:
+          POSTGRES_DB_URL: postgres://test_user:test@localhost:5432/${{ inputs.POSTGRES_DB }}
+          POSTGRES_TEST_DB_URL: postgres://test_user:test@localhost:5432/${{ inputs.POSTGRES_DB }}
+
+      - name: Set conditional env vars for prod
+        run: |
+          echo "SLACK_WEBHOOK=${{ secrets.SLACK_DEV_RELEASE_WEBHOOK }}" >> $GITHUB_ENV
+        if: github.ref == 'refs/heads/main'
+
+      - name: Set conditional env vars for dev
+        run: |
+          echo "SLACK_WEBHOOK=${{ secrets.SLACK_PROD_RELEASE_WEBHOOK }}" >> $GITHUB_ENV
+        if: github.ref == 'refs/heads/dev'
+
+      - name: "Semantic Release"
+        if: github.event_name != 'pull_request'
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v3
+        env:
+          SEMANTIC_RELEASE_PACKAGE: ${{ inputs.SEMANTIC_RELEASE_PACKAGE }}
+
+      - name: "Publish OpenAPI client"
+        if: github.event_name != 'pull_request' && steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          npm run generate-openapi-client
+          cd ./output/${{ inputs.OPENAPI_CLIENT_NAME }}
+          node -e "let pkg=require('./package.json'); pkg.repository={'url': ${{ github.repositoryUrl }}, 'type': 'git'}; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+          npm publish
+        env:
+          POSTGRES_DB_URL: postgres://test_user:test@localhost:5432/${{ inputs.POSTGRES_DB }}
+          MYSQL_DB_URL: mysql://root:test@localhost:3306/${{ inputs.MYSQL_DB }}
