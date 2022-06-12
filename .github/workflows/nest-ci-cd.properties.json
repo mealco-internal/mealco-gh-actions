@@ -1,7 +1,0 @@
-{
-  "name": "NestJS CI/CD workflow for Mealco apps",
-  "description": "CI/CD workflow template for NestJS Mealco projects",
-  "iconName": "nest-ci-cd",
-  "categories": ["TypeScript"],
-  "filePatterns": ["package.json$"]
-}

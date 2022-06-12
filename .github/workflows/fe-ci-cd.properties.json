@@ -1,0 +1,7 @@
+{
+  "name": "Frontend CI/CD workflow for Mealco apps",
+  "description": "CI/CD workflow template for Mealco frontend projects",
+  "iconName": "fe-ci-cd",
+  "categories": ["TypeScript"],
+  "filePatterns": ["package.json$"]
+}

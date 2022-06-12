@@ -1,0 +1,64 @@
+name: CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      SEMANTIC_RELEASE_PACKAGE:
+        description: "Original package in top level package.json to bump the version for"
+        required: true
+        type: string
+    secrets:
+      NPM_TOKEN:
+        required: true
+      GH_TOKEN:
+        required: true
+      SLACK_DEV_RELEASE_WEBHOOK:
+        required: true
+      SLACK_PROD_RELEASE_WEBHOOK:
+        required: true
+
+env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+
+      - name: "Install and Build"
+        run: |
+          npm config set @mealco-internal:registry https://npm.pkg.github.com
+          npm config set -- '//npm.pkg.github.com/:_authToken' ${NPM_TOKEN}
+          npm ci
+          npm run build
+
+      - name: "Lint"
+        run: npm run lint:check
+
+      - name: "Test"
+        run: npm run test
+
+      - name: Set conditional env vars for prod
+        run: |
+          echo "SLACK_WEBHOOK=${{ secrets.SLACK_DEV_RELEASE_WEBHOOK }}" >> $GITHUB_ENV
+        if: github.ref == 'refs/heads/main'
+
+      - name: Set conditional env vars for dev
+        run: |
+          echo "SLACK_WEBHOOK=${{ secrets.SLACK_PROD_RELEASE_WEBHOOK }}" >> $GITHUB_ENV
+        if: github.ref == 'refs/heads/dev'
+
+      - name: "Semantic Release"
+        if: github.event_name != 'pull_request'
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v3
+        env:
+          SEMANTIC_RELEASE_PACKAGE: ${{ inputs.SEMANTIC_RELEASE_PACKAGE }}
