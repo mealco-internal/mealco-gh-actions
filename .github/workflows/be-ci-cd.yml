@@ -115,7 +115,7 @@ jobs:
         run: |
           npm run generate-openapi-client
           cd ./output/${{ inputs.OPENAPI_CLIENT_NAME }}
-          node -e "let pkg=require('./package.json'); pkg.repository={'url': ${{ github.repositoryUrl }}, 'type': 'git'}; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+          node -e "let pkg=require('./package.json'); pkg.repository={'url': '${{ github.repositoryUrl }}', 'type': 'git'}; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
           npm publish
         env:
           POSTGRES_DB_URL: postgres://test_user:test@localhost:5432/${{ inputs.POSTGRES_DB }}
