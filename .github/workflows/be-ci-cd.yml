@@ -17,7 +17,7 @@ on:
         type: string
       OPENAPI_CLIENT_NAME:
         description: "Name of the generated OpenApi client from the project"
-        required: true
+        required: false
         type: string
     secrets:
       NPM_TOKEN:
@@ -111,7 +111,7 @@ jobs:
           SEMANTIC_RELEASE_PACKAGE: ${{ inputs.SEMANTIC_RELEASE_PACKAGE }}
 
       - name: "Publish OpenAPI client"
-        if: github.event_name != 'pull_request' && steps.semantic.outputs.new_release_published == 'true'
+        if: github.event_name != 'pull_request' && steps.semantic.outputs.new_release_published == 'true' && github.event.inputs.OPENAPI_CLIENT_NAME != ''
         run: |
           npm run generate-openapi-client
           cd ./output/${{ inputs.OPENAPI_CLIENT_NAME }}
