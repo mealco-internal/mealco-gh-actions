@@ -116,7 +116,7 @@ jobs:
           SEMANTIC_RELEASE_PACKAGE: ${{ inputs.SEMANTIC_RELEASE_PACKAGE }}
 
       - name: "Publish OpenAPI client"
-        if: steps.semantic.outputs.new_release_published == 'true' && github.event.inputs.SHOULD_PUBLISH_OPENAPI_CLIENT == true
+        if: steps.semantic.outputs.new_release_published == 'true' && github.event.inputs.SHOULD_PUBLISH_OPENAPI_CLIENT == 'true'
         run: |
           npm run generate-openapi-client
           cd ./output/${{ inputs.OPENAPI_CLIENT_NAME }}
